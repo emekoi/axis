@@ -146,10 +146,10 @@ function stalker.onerror(e, nostacktrace)
 
     drawtext("An error has occurred", pad, pad, colors[2])
     drawtext("stalker", width - (sol.Font.fromEmbedded(16)):getWidth("stalker") -
-             pad, pad, colors[4])
+    pad, pad, colors[4])
     drawhr(pad + 32, colors[4], colors[5])
     drawtext("Fix the error and program will resume",
-                            pad, pad + 46, colors[3])
+    pad, pad + 46, colors[3])
     drawhr(pad + 72, colors[4], colors[5])
     drawtext(lume.wordwrap(msg, 58), pad, pad + 90, colors[5])
 

@@ -1,5 +1,5 @@
 local _ = require "lib.lume"
-local Object = require "lib.classic"
+local Object = require "obj.classic"
 
 local Camera = Object:extend()
 
@@ -30,8 +30,6 @@ function Camera:move(dx, dy)
   local x = self.x + (dx or 0)
   local y = self.y + (dy or 0)
   self:goTo(x, y)
-  print(self.x, self.y)
-
 end
 
 
@@ -79,7 +77,6 @@ end
 
 function Camera:render()
   local rect = { x = self.x, y = self.y, w = self.width, h = self.height }
-  -- print(rect.x, rect.y, rect.w, rect.h)
   self.game.postbuffer = self.game.framebuffer:clone()
   self.game.framebuffer:clear(unpack(self.game.bgcolor))
   self.game.framebuffer:reset()
@@ -88,7 +85,7 @@ function Camera:render()
     sol.graphics.draw(self.game.postbuffer,
       _.random() * self.shake,
       _.random() * self.shake, rect, nil, self.sx, self.sy)
-    return 
+    return
   end
   sol.graphics.draw(self.game.postbuffer, 0, 0, rect, nil, self.sx, self.sy)
 end

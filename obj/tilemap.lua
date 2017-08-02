@@ -1,100 +1,45 @@
 local _ = require "lib.lume"
-local Entity = require "core.entity"
+local Object = require "obj.classic"
+local Game = require "obj.game"
+local Color = require "obj.color"
 
-local Tile = Entity:extend()
-local TileMap = Entity:extend()
+local TileMap = Object:extend()
 
-function Tile:new(filename, tilesize, index, cache)
-  Tile.super.new(self)
-  if cache then
-    self.image = cache.image
-    self.frames = cache.frames
-    self.width, self.height = tilesize, tilesize
-  else
-    self:loadImage(filename, tilesize, tilesize)
-  end
-  self.frame = index
-  self.solid = true
-  self.moves = false
-end
-
-TileMap.Tile = Tile
-
-function TileMap:new()
-  TileMap.super.new(self)
+function TileMap:new(name)
   self.solid = false
-end
-
-function TileMap:loadArray(array, width, imageFile, tileSize)
-  if #array % width ~= 0 then
-      error("expected array to be divisible by width")
-  end
-  self.data = _.clone(array)
-  self.widthInTiles = width
-  self.heightInTiles = #array / width
-  self.tileSize = tileSize
-  self.tiles = {}
-  local cache = Tile(imageFile, tileSize, 1)
-  for i = 1, math.huge do
-    local tile = Tile(imageFile, tileSize, i, cache)
-    table.insert(self.tiles, tile)
-    if i == #tile.frames then
-      break
-    end
-  end
-  self.width = self.widthInTiles * self.tileSize
-  self.height = self.heightInTiles * self.tileSize
-end
-
-function TileMap:loadTMX(filename, imageFile)
-  local text = sol.fs.read(filename)
-  local ptn = '"csv">(.-)<'
-  local s = text:match(ptn)
-  print(s)
-  assert(s, "tile layer does not exist")
-  local data = _.map(_.split(s, ","), tonumber)
-  local width = tonumber(text:match('width="(.-)"'))
-  local tileSize = tonumber(text:match('tilewidth="(.-)"'))
-  if not imageFile then
-    imageFile = text:match('image source="(.-)"'):gsub("%.%.", "data")
-  end
-  self:loadArray(data, width, imageFile, tileSize)
-  return self
-end
-
-function TileMap:getTile(x, y)
-  local t = self.tiles[self.data[x + y * self.widthInTiles + 1]]
-  if t then
-    t.x, t.y = x * self.tileSize + self.x, y * self.tileSize + self.y
-    return t
-  end
-end
-
-function TileMap:eachOverlappingTile(r, fn, revx, revy, ...)
-  local sx = math.floor((r:left()    - self.x) / self.tileSize)
-  local sy = math.floor((r:top()     - self.y) / self.tileSize)
-  local ex = math.floor((r:right()   - self.x) / self.tileSize)
-  local ey = math.floor((r:bottom()  - self.y) / self.tileSize)
-  sx, sy = math.max(sx, 0), math.max(sy, 0)
-  ex = math.min(ex, self.widthInTiles - 1)
-  ey = math.min(ey, self.heightInTiles - 1)
-  if revx then sx, ex = ex, sx end
-  if revy then sy, ey = ey, sy end
-  for y = sy, ey, (revy and -1 or 1) do
-    for x = sx, ex, (revx and -1 or 1) do
-      local t = self:getTile(x, y)
-      if t then fn(t, ...) end
-    end
-  end
+  self.data = require(name)
+  self.map = sol.Buffer.fromBlank(self.data.width * self.data.tilewidth, self.data.height * self.data.tileheight)
 end
 
 function TileMap:update(dt)
-  TileMap.super.update(self, dt)
-  _.each(self.tiles, "update", dt)
+
 end
 
-function TileMap:draw()
-  -- self:eachOverlappingTile(Tile.draw)
+function TileMap:render()
+  for _, layer in ipairs(self.data.layers) do
+    for _, obj in ipairs(layer.objects) do
+      local color = obj.properties.static and Color["red"] or Color["blue"]
+
+      if obj.shape == "rectangle" then
+        self.map:drawBox(obj.x, obj.y, obj.width, obj.height, unpack(color))
+      elseif obj.shape == "polygon" then
+        self.map:drawPixel(obj.x, obj.y, unpack(color))
+
+        local _p = {x = obj.x, y = obj.y}
+        for _, p in ipairs(obj.polygon) do
+          local x, y = obj.x + p.x, obj.y + p.y
+          self.map:drawLine(_p.x, _p.y, x, y, unpack(color))
+          _p = {x = x, y = y}
+        end
+        self.map:drawLine(_p.x, _p.y, obj.x, obj.y, unpack(color))
+
+      end
+    end
+  end
+
+  Game.framebuffer:draw(self.map, 0, 0)
+  self.map:clear()
 end
+
 
 return TileMap

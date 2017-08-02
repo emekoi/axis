@@ -1,4 +1,4 @@
-local Object = require "lib.classic"
+local Object = require "obj.classic"
 local _ = require "lib.lume"
 
 
@@ -104,7 +104,7 @@ end
 
 
 function Rect:equal(r)
-  return self.x == r.x and self.y == r.y 
+  return self.x == r.x and self.y == r.y
   and self.width == r.width and self.height == r.height
 end
 

@@ -1,7 +1,7 @@
 local _ = require "lib.lume"
 local log = require "lib.log"
 
-local Game = require "lib.classic"
+local Game = require "obj.classic"
 local Rect = require "obj.rect"
 local Color = require "obj.color"
 local Input = require "obj.input"
@@ -14,18 +14,21 @@ end
 function Game.init(width, height, color)
   Game.bgcolor = Color[color] and Color[color] or Color["dark-grey"]
 
-  Game.width = width * G.scale
-  Game.height = height * G.scale
+  Game.width = width
+  Game.height = height
 
   Game.camera = require("obj.camera")(Game, 0, 0, width, height)
   Game.framebuffer = sol.Buffer.fromBlank(Game.width, Game.height)
   Game.postbuffer = Game.framebuffer:clone()
+
+  Game.map =  require("obj.tilemap")("data/map/map0")
 
   log.usecolor = false
 end
 
 function Game.update(dt)
   Game.camera:update(dt)
+  Game.map:update(dt)
   -- print(Game.framebuffer:getWidth(), Game.width, Game.camera.width)
   -- handle normal keyboard input
   if Input.wasPressed("quit") then
@@ -35,7 +38,7 @@ function Game.update(dt)
     G.debug = mode
     sol.debug.clear()
     sol.debug.setVisible(G.debug and mode)
-    log.trace(mode and "debug mode activated" or "debug mode deactivated")
+    -- log.trace(mode and "debug mode activated" or "debug mode deactivated")
   elseif G.debug == true and Input.wasPressed("console") then
     local mode = not sol.debug.getFocused()
     sol.debug.setFocused(G.debug and mode)
@@ -49,8 +52,8 @@ function Game.update(dt)
 end
 
 function Game.draw()
-  Game.camera:render(Game)
-
+  Game.camera:render()
+  Game.map:render()
 end
 
 function Game.key(key, char)

@@ -2,6 +2,7 @@ local Game = require "obj.game"
 local Input = require "obj.input"
 
 function sol.onLoad()
+  sol.debug.setVisible(true)
   Game.init(G.width, G.height, "peach")
   Input.register({
     ["left"]    = {"left", "a"},

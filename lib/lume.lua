@@ -452,321 +452,321 @@ end
 
 function lume.fn(fn, ...)
   assert(iscallable(fn), "expected a function as the first argument")
-  local args = { ... }
-  return function(...)
-    local a = lume.concat(args, { ... })
-    return fn(unpack(a))
-  end
-end
-
-
-function lume.once(fn, ...)
-  local f = lume.fn(fn, ...)
-  local done = false
-  return function(...)
-    if done then return end
-    done = true
-    return f(...)
-  end
-end
-
-
-local memoize_fnkey = {}
-local memoize_nil = {}
-
-function lume.memoize(fn)
-  local cache = {}
-  return function(...)
-    local c = cache
-    for i = 1, select("#", ...) do
-      local a = select(i, ...) or memoize_nil
-      c[a] = c[a] or {}
-      c = c[a]
+    local args = { ... }
+    return function(...)
+      local a = lume.concat(args, { ... })
+      return fn(unpack(a))
     end
-    c[memoize_fnkey] = c[memoize_fnkey] or {fn(...)}
-    return unpack(c[memoize_fnkey])
   end
-end
 
 
-function lume.combine(...)
-  local n = select('#', ...)
-  if n == 0 then return noop end
-  if n == 1 then
-    local fn = select(1, ...)
-    if not fn then return noop end
-    assert(iscallable(fn), "expected a function or nil")
-    return fn
+  function lume.once(fn, ...)
+    local f = lume.fn(fn, ...)
+    local done = false
+    return function(...)
+      if done then return end
+      done = true
+      return f(...)
+    end
   end
-  local funcs = {}
-  for i = 1, n do
-    local fn = select(i, ...)
-    if fn ~= nil then
+
+
+  local memoize_fnkey = {}
+  local memoize_nil = {}
+
+  function lume.memoize(fn)
+    local cache = {}
+    return function(...)
+      local c = cache
+      for i = 1, select("#", ...) do
+        local a = select(i, ...) or memoize_nil
+        c[a] = c[a] or {}
+        c = c[a]
+      end
+      c[memoize_fnkey] = c[memoize_fnkey] or {fn(...)}
+      return unpack(c[memoize_fnkey])
+    end
+  end
+
+
+  function lume.combine(...)
+    local n = select('#', ...)
+    if n == 0 then return noop end
+    if n == 1 then
+      local fn = select(1, ...)
+      if not fn then return noop end
       assert(iscallable(fn), "expected a function or nil")
-      funcs[#funcs + 1] = fn
-    end
-  end
-  return function(...)
-    for _, f in ipairs(funcs) do f(...) end
-  end
-end
-
-
-function lume.call(fn, ...)
-  if fn then
-    return fn(...)
-  end
-end
-
-
-function lume.time(fn, ...)
-  local start = os.clock()
-  local rtn = {fn(...)}
-  return (os.clock() - start), unpack(rtn)
-end
-
-
-local lambda_cache = {}
-
-function lume.lambda(str)
-  if not lambda_cache[str] then
-    local args, body = str:match([[^([%w,_ ]-)%->(.-)$]])
-    assert(args and body, "bad string lambda")
-    local s = "return function(" .. args .. ")\nreturn " .. body .. "\nend"
-    lambda_cache[str] = lume.dostring(s)
-  end
-  return lambda_cache[str]
-end
-
-
-local serialize
-
-local serialize_map = {
-  [ "boolean" ] = tostring,
-  [ "nil"     ] = tostring,
-  [ "string"  ] = function(v) return string.format("%q", v) end,
-  [ "number"  ] = function(v)
-    if      v ~=  v     then return  "0/0"      --  nan
-    elseif  v ==  1 / 0 then return  "1/0"      --  inf
-    elseif  v == -1 / 0 then return "-1/0" end  -- -inf
-    return tostring(v)
-  end,
-  [ "table"   ] = function(t, stk)
-    stk = stk or {}
-    if stk[t] then error("circular reference") end
-    local rtn = {}
-    stk[t] = true
-    for k, v in pairs(t) do
-      rtn[#rtn + 1] = "[" .. serialize(k, stk) .. "]=" .. serialize(v, stk)
-    end
-    stk[t] = nil
-    return "{" .. table.concat(rtn, ",") .. "}"
-  end
-}
-
-setmetatable(serialize_map, {
-  __index = function(_, k) error("unsupported serialize type: " .. k) end
-})
-
-serialize = function(x, stk)
-  return serialize_map[type(x)](x, stk)
-end
-
-function lume.serialize(x)
-  return serialize(x)
-end
-
-
-function lume.deserialize(str)
-  return lume.dostring("return " .. str)
-end
-
-
-function lume.split(str, sep)
-  if not sep then
-    return lume.array(str:gmatch("([%S]+)"))
-  else
-    assert(sep ~= "", "empty separator")
-    local psep = patternescape(sep)
-    return lume.array((str..sep):gmatch("(.-)("..psep..")"))
-  end
-end
-
-
-function lume.trim(str, chars)
-  if not chars then return str:match("^[%s]*(.-)[%s]*$") end
-  chars = patternescape(chars)
-  return str:match("^[" .. chars .. "]*(.-)[" .. chars .. "]*$")
-end
-
-
-function lume.wordwrap(str, limit)
-  limit = limit or 72
-  local check
-  if type(limit) == "number" then
-    check = function(s) return #s >= limit end
-  else
-    check = limit
-  end
-  local rtn = {}
-  local line = ""
-  for word, spaces in str:gmatch("(%S+)(%s*)") do
-    local s = line .. word
-    if check(s) then
-      table.insert(rtn, line .. "\n")
-      line = word
-    else
-      line = s
-    end
-    for c in spaces:gmatch(".") do
-      if c == "\n" then
-        table.insert(rtn, line .. "\n")
-        line = ""
-      else
-        line = line .. c
+        return fn
       end
-    end
-  end
-  table.insert(rtn, line)
-  return table.concat(rtn)
-end
-
-
-function lume.format(str, vars)
-  if not vars then return str end
-  local f = function(x)
-    return tostring(vars[x] or vars[tonumber(x)] or "{" .. x .. "}")
-  end
-  return (str:gsub("{(.-)}", f))
-end
-
-
-function lume.trace(...)
-  local info = debug.getinfo(2, "Sl")
-  local t = { info.short_src .. ":" .. info.currentline .. ":" }
-  for i = 1, select("#", ...) do
-    local x = select(i, ...)
-    if type(x) == "number" then
-      x = string.format("%g", lume.round(x, .01))
-    end
-    t[#t + 1] = tostring(x)
-  end
-  print(table.concat(t, " "))
-end
-
-
-function lume.dostring(str)
-  return assert((loadstring or load)(str))()
-end
-
-
-function lume.uuid()
-  local fn = function(x)
-    local r = math.random(16) - 1
-    r = (x == "x") and (r + 1) or (r % 4) + 9
-    return ("0123456789abcdef"):sub(r, r)
-  end
-  return (("xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx"):gsub("[xy]", fn))
-end
-
-
-function lume.hotswap(modname)
-  local oldglobal = lume.clone(_G)
-  local updated = {}
-  local function update(old, new)
-    if updated[old] then return end
-    updated[old] = true
-    local oldmt, newmt = getmetatable(old), getmetatable(new)
-    if oldmt and newmt then update(oldmt, newmt) end
-    for k, v in pairs(new) do
-      if type(v) == "table" then update(old[k], v) else old[k] = v end
-    end
-  end
-  local err = nil
-  local function onerror(e)
-    for k in pairs(_G) do _G[k] = oldglobal[k] end
-    err = lume.trim(e)
-  end
-  local ok, oldmod = pcall(require, modname)
-  oldmod = ok and oldmod or nil
-  xpcall(function()
-    package.loaded[modname] = nil
-    local newmod = require(modname)
-    if type(oldmod) == "table" then update(oldmod, newmod) end
-    for k, v in pairs(oldglobal) do
-      if v ~= _G[k] and type(v) == "table" then
-        update(v, _G[k])
-        _G[k] = v
+      local funcs = {}
+      for i = 1, n do
+        local fn = select(i, ...)
+        if fn ~= nil then
+          assert(iscallable(fn), "expected a function or nil")
+            funcs[#funcs + 1] = fn
+          end
+        end
+        return function(...)
+          for _, f in ipairs(funcs) do f(...) end
+        end
       end
-    end
-  end, onerror)
-  package.loaded[modname] = oldmod
-  if err then return nil, err end
-  return oldmod
-end
 
 
-local ripairs_iter = function(t, i)
-  i = i - 1
-  local v = t[i]
-  if v then return i, v end
-end
-
-function lume.ripairs(t)
-  return ripairs_iter, t, (#t + 1)
-end
+      function lume.call(fn, ...)
+        if fn then
+          return fn(...)
+        end
+      end
 
 
-function lume.color(str, mul)
-  mul = mul or 1
-  local r, g, b, a
-  r, g, b = str:match("#(%x%x)(%x%x)(%x%x)")
-  if r then
-    r = tonumber(r, 16) / 0xff
-    g = tonumber(g, 16) / 0xff
-    b = tonumber(b, 16) / 0xff
-    a = 1
-  elseif str:match("rgba?%s*%([%d%s%.,]+%)") then
-    local f = str:gmatch("[%d.]+")
-    r = (f() or 0) / 0xff
-    g = (f() or 0) / 0xff
-    b = (f() or 0) / 0xff
-    a = f() or 1
-  else
-    error(("bad color string '%s'"):format(str))
-  end
-  return r * mul, g * mul, b * mul, a * mul
-end
+      function lume.time(fn, ...)
+        local start = os.clock()
+        local rtn = {fn(...)}
+        return (os.clock() - start), unpack(rtn)
+      end
 
 
-function lume.rgba(color)
-  local a = math_floor((color / 16777216) % 256)
-  local r = math_floor((color /    65536) % 256)
-  local g = math_floor((color /      256) % 256)
-  local b = math_floor((color) % 256)
-  return r, g, b, a
-end
+      local lambda_cache = {}
+
+      function lume.lambda(str)
+        if not lambda_cache[str] then
+          local args, body = str:match([[^([%w,_ ]-)%->(.-)$]])
+          assert(args and body, "bad string lambda")
+          local s = "return function(" .. args .. ")\nreturn " .. body .. "\nend"
+            lambda_cache[str] = lume.dostring(s)
+          end
+          return lambda_cache[str]
+        end
 
 
-local chain_mt = {}
-chain_mt.__index = lume.map(lume.filter(lume, iscallable, true),
-  function(fn)
-    return function(self, ...)
-      self._value = fn(self._value, ...)
-      return self
-    end
-  end)
-chain_mt.__index.result = function(x) return x._value end
+        local serialize
 
-function lume.chain(value)
-  return setmetatable({ _value = value }, chain_mt)
-end
+        local serialize_map = {
+          [ "boolean" ] = tostring,
+          [ "nil"     ] = tostring,
+          [ "string"  ] = function(v) return string.format("%q", v) end,
+          [ "number"  ] = function(v)
+            if      v ~=  v     then return  "0/0"      --  nan
+            elseif  v ==  1 / 0 then return  "1/0"      --  inf
+            elseif  v == -1 / 0 then return "-1/0" end  -- -inf
+            return tostring(v)
+          end,
+          [ "table"   ] = function(t, stk)
+            stk = stk or {}
+            if stk[t] then error("circular reference") end
+            local rtn = {}
+            stk[t] = true
+            for k, v in pairs(t) do
+              rtn[#rtn + 1] = "[" .. serialize(k, stk) .. "]=" .. serialize(v, stk)
+            end
+            stk[t] = nil
+            return "{" .. table.concat(rtn, ",") .. "}"
+          end
+        }
 
-setmetatable(lume,  {
-  __call = function(_, ...)
-    return lume.chain(...)
-  end
-})
+        setmetatable(serialize_map, {
+          __index = function(_, k) error("unsupported serialize type: " .. k) end
+        })
+
+        serialize = function(x, stk)
+          return serialize_map[type(x)](x, stk)
+        end
+
+        function lume.serialize(x)
+          return serialize(x)
+        end
 
 
-return lume
+        function lume.deserialize(str)
+          return lume.dostring("return " .. str)
+        end
+
+
+        function lume.split(str, sep)
+          if not sep then
+            return lume.array(str:gmatch("([%S]+)"))
+          else
+            assert(sep ~= "", "empty separator")
+            local psep = patternescape(sep)
+            return lume.array((str..sep):gmatch("(.-)("..psep..")"))
+          end
+        end
+
+
+        function lume.trim(str, chars)
+          if not chars then return str:match("^[%s]*(.-)[%s]*$") end
+          chars = patternescape(chars)
+          return str:match("^[" .. chars .. "]*(.-)[" .. chars .. "]*$")
+        end
+
+
+        function lume.wordwrap(str, limit)
+          limit = limit or 72
+          local check
+          if type(limit) == "number" then
+            check = function(s) return #s >= limit end
+          else
+            check = limit
+          end
+          local rtn = {}
+          local line = ""
+          for word, spaces in str:gmatch("(%S+)(%s*)") do
+            local s = line .. word
+            if check(s) then
+              table.insert(rtn, line .. "\n")
+              line = word
+            else
+              line = s
+            end
+            for c in spaces:gmatch(".") do
+              if c == "\n" then
+                table.insert(rtn, line .. "\n")
+                line = ""
+              else
+                line = line .. c
+              end
+            end
+          end
+          table.insert(rtn, line)
+          return table.concat(rtn)
+        end
+
+
+        function lume.format(str, vars)
+          if not vars then return str end
+          local f = function(x)
+            return tostring(vars[x] or vars[tonumber(x)] or "{" .. x .. "}")
+          end
+          return (str:gsub("{(.-)}", f))
+        end
+
+
+        function lume.trace(...)
+          local info = debug.getinfo(2, "Sl")
+          local t = { info.short_src .. ":" .. info.currentline .. ":" }
+          for i = 1, select("#", ...) do
+            local x = select(i, ...)
+            if type(x) == "number" then
+              x = string.format("%g", lume.round(x, .01))
+            end
+            t[#t + 1] = tostring(x)
+          end
+          print(table.concat(t, " "))
+        end
+
+
+        function lume.dostring(str)
+          return assert((loadstring or load)(str))()
+        end
+
+
+        function lume.uuid()
+          local fn = function(x)
+            local r = math.random(16) - 1
+            r = (x == "x") and (r + 1) or (r % 4) + 9
+            return ("0123456789abcdef"):sub(r, r)
+          end
+          return (("xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx"):gsub("[xy]", fn))
+        end
+
+
+        function lume.hotswap(modname)
+          local oldglobal = lume.clone(_G)
+          local updated = {}
+          local function update(old, new)
+            if updated[old] then return end
+            updated[old] = true
+            local oldmt, newmt = getmetatable(old), getmetatable(new)
+            if oldmt and newmt then update(oldmt, newmt) end
+            for k, v in pairs(new) do
+              if type(v) == "table" then update(old[k], v) else old[k] = v end
+            end
+          end
+          local err = nil
+          local function onerror(e)
+            for k in pairs(_G) do _G[k] = oldglobal[k] end
+            err = lume.trim(e)
+          end
+          local ok, oldmod = pcall(require, modname)
+          oldmod = ok and oldmod or nil
+          xpcall(function()
+            package.loaded[modname] = nil
+            local newmod = require(modname)
+            if type(oldmod) == "table" then update(oldmod, newmod) end
+            for k, v in pairs(oldglobal) do
+              if v ~= _G[k] and type(v) == "table" then
+                update(v, _G[k])
+                _G[k] = v
+              end
+            end
+          end, onerror)
+          package.loaded[modname] = oldmod
+          if err then return nil, err end
+          return oldmod
+        end
+
+
+        local ripairs_iter = function(t, i)
+          i = i - 1
+          local v = t[i]
+          if v then return i, v end
+        end
+
+        function lume.ripairs(t)
+          return ripairs_iter, t, (#t + 1)
+        end
+
+
+        function lume.color(str, mul)
+          mul = mul or 1
+          local r, g, b, a
+          r, g, b = str:match("#(%x%x)(%x%x)(%x%x)")
+          if r then
+            r = tonumber(r, 16) / 0xff
+            g = tonumber(g, 16) / 0xff
+            b = tonumber(b, 16) / 0xff
+            a = 1
+          elseif str:match("rgba?%s*%([%d%s%.,]+%)") then
+            local f = str:gmatch("[%d.]+")
+            r = (f() or 0) / 0xff
+            g = (f() or 0) / 0xff
+            b = (f() or 0) / 0xff
+            a = f() or 1
+          else
+            error(("bad color string '%s'"):format(str))
+          end
+          return r * mul, g * mul, b * mul, a * mul
+        end
+
+
+        function lume.rgba(color)
+          local a = math_floor((color / 16777216) % 256)
+          local r = math_floor((color /    65536) % 256)
+          local g = math_floor((color /      256) % 256)
+          local b = math_floor((color) % 256)
+          return r, g, b, a
+        end
+
+
+        local chain_mt = {}
+        chain_mt.__index = lume.map(lume.filter(lume, iscallable, true),
+        function(fn)
+          return function(self, ...)
+            self._value = fn(self._value, ...)
+            return self
+          end
+        end)
+        chain_mt.__index.result = function(x) return x._value end
+
+        function lume.chain(value)
+          return setmetatable({ _value = value }, chain_mt)
+        end
+
+        setmetatable(lume,  {
+          __call = function(_, ...)
+            return lume.chain(...)
+          end
+        })
+
+
+        return lume

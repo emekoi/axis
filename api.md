@@ -134,7 +134,7 @@
 ##### `sol.graphics.setClearColor(r, g, b, a)`
 ##### `sol.graphics.getClearColor()`
 ##### `sol.graphics.getHeight()`
-##### `sol.graphics.clear(r,g,b,a)`
+##### `sol.graphics.clear(r, g ,b, a)`
 ##### `sol.graphics.reset()`
 ##### `sol.graphics.setSize(width, height)`
 ##### `sol.graphics.drawBox(x, y, w, h, r, g, b, a)`
