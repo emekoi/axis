@@ -35,7 +35,7 @@ return {
           visible = true,
           properties = {
             ["solid"] = true,
-            ["static"] = true
+            ["static"] = true,
           }
         },
         {

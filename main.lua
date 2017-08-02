@@ -22,7 +22,6 @@ function sol.onLoad()
 end
 
 function sol.onUpdate(dt)
-  -- require("lib.lovebird").update(dt)
   require("lib.stalker").update(dt)
   Game.update(dt)
 end

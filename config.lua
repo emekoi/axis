@@ -7,6 +7,7 @@ G = {
   height = 128,
   scale = 4,
   debug = false,
+  gravity = 2,
 }
 
 if sol.system.info("os") == "windows" then
