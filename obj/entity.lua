@@ -1,31 +1,60 @@
+-- gravity done right
+--https://www.gamedev.net/articles/programming/math-and-physics/a-verlet-based-approach-for-2d-game-physics-r2714/
+-- https://gamedev.stackexchange.com/questions/15708/how-can-i-implement-gravity
+-- http://lolengine.net/blog/2011/12/14/understanding-motion-in-games
+
 local Object = require "obj.classic"
 local _ = require "lib.lume"
 local Color = require "obj.color"
 
 local Entity = Object:extend()
-
--- gravity done right
--- https://gamedev.stackexchange.com/questions/15708/how-can-i-implement-gravity
--- http://lolengine.net/blog/2011/12/14/understanding-motion-in-games
-
-function Entity:new(x, y, points)
-  self.x, self.vx = x or 0, 0
-  self.y, self.vy = y or 0, 0
-  self.points = points
-  self.accel = { x = 0, y = 9.8^2 }
-end
+local Edge = Object:extend()
 
 
-function Entity:update(dt)
-  if not self.static then
-    local pvx, pvy = self.vx, self.vy
-    self.vx = self.vx + self.accel.x * dt
-    self.vy = self.vy + self.accel.y * dt
-    self.x = self.x + (pvx + self.vx) * 0.5 * dt
-    self.y = self.y + (pvy + self.vy) * 0.5 * dt
+
+if G.verlet == "velocity" then
+
+  function Entity:new(x, y, points)
+    self.x, self.vx = x or 0, 0
+    self.y, self.vy = y or 0, 0
+    self.points = points
+    self.accel = { x = 0, y = 9.8^2 }
   end
-  if self.solid then
+
+
+  function Entity:update(dt)
+    if not self.static then
+      local pvx, pvy = self.vx, self.vy
+      self.vx = self.vx + self.accel.x * dt
+      self.vy = self.vy + self.accel.y * dt
+      self.x = self.x + (pvx + self.vx) * 0.5 * dt
+      self.y = self.y + (pvy + self.vy) * 0.5 * dt
+    end
+    if self.solid then
+    end
   end
+
+else
+
+  function Entity:new(x, y, points)
+    self.x, self.px = x or 0, x or 0
+    self.y, self.py = y or 0, y or 0
+    self.points = points
+    self.accel = { x = 0, y = 1000 }
+  end
+
+
+  function Entity:update(dt)
+    if not self.static then
+      self.x = self.x + (self.x - self.px) + self.accel.x * dt ^ 2
+      self.y = self.y + (self.y - self.py) + self.accel.y * dt ^ 2
+
+      self.px, self.py = self.x, self.y
+    end
+    if self.solid then
+    end
+  end
+
 end
 
 
